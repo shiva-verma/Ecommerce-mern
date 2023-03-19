@@ -2,6 +2,7 @@ const { findById } = require("../models/productModel");
 const product = require("../models/productModel");
 const ErrorHandler = require("../utils/errorHandler");
 const catchAsyncError = require("../middleware/catchAsyncError");
+const ApiFeature = require("../utils/apiFeature");
 
 //create product -- admin route
 exports.createProduct = catchAsyncError(async(req, res, next) => {
@@ -15,7 +16,16 @@ exports.createProduct = catchAsyncError(async(req, res, next) => {
 
 //get all products
 exports.getAllProducts = catchAsyncError(async(req, res) => {
-    const products = await product.find();
+
+    const resultPerPage = 3;
+    const productCount = product.countDocuments();
+
+    const apiFeature = new ApiFeature(product.find(), req.query)
+    .search()
+    .filter()
+    .pagination(resultPerPage);
+
+    const products = await apiFeature.query;
     res.status(200).json({
         success:true,
         products
@@ -35,6 +45,7 @@ exports.updateProduct = catchAsyncError(async(req, res, next) => {
         runValidators:true,
         useFindAndModify: false
      });
+     
 
      res.status(200).json({
         success:true,
@@ -68,6 +79,7 @@ exports.getProductDetail = catchAsyncError(async(req, res, next) => {
      
      res.status(200).json({
         success:true,
-        singleProduct
+        singleProduct,
+        productCount
      });
 });
