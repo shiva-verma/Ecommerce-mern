@@ -3,6 +3,7 @@ const catchAsyncError = require("../middleware/catchAsyncError");
 const User = require('../models/userModel');
 const sendToken = require("../utils/jwtToken");
 const sendEmail = require("../utils/sendEmail");
+const crypto = require('crypto');
 
 //register a User 
 exports.registerUser = catchAsyncError(async(req, res, next) => {
@@ -58,7 +59,7 @@ exports.logoutUser = catchAsyncError(async (req, res, next) =>{
       });
 });
 
-// //forgot password
+//forgot password
 exports.forgotPassword = catchAsyncError(async(req, res, next) =>{
     const user = await User.findOne({email: req.body.email});
 
@@ -66,7 +67,7 @@ exports.forgotPassword = catchAsyncError(async(req, res, next) =>{
       return next(new ErrorHandler("User not exist", 404))
     }
 
-    //Get reset password token
+    //Get reset password token 
     const resetToken = await user.getPasswordResetToken();
 
     await user.save({validateBeforeSave:false});
@@ -97,4 +98,38 @@ exports.forgotPassword = catchAsyncError(async(req, res, next) =>{
 
        return next(new ErrorHandler(error.message, 500));
     }
+});
+
+//reset token
+exports.resetPassword = catchAsyncError(async(req, res, next) =>{
+
+     //creating token hash
+       const resetPasswordToken = crypto
+       .createHash("sha256")
+       .update(req.params.token)
+       .digest("hex");
+
+       console.log(req.params.token);
+       console.log(resetPasswordToken);
+
+        const user = await User.findOne({
+          resetPasswordToken,
+          resetPasswordExpire: { $gt : Date.now() },
+         });
+
+         if(!user){
+          return next(new ErrorHandler("Reset password token has been invalid or expired", 400));
+         }
+
+         if(req.body.password != req.body.confirmPassword){
+          return next(new ErrorHandler("Password does not match",400));
+         }
+
+         user.password = req.body.password;
+
+         user.resetPasswordToken = undefined;
+         user.resetPasswordExpire = undefined;
+
+         await user.save({validateBeforeSave:false});
+         sendToken(user, 200, res);
 });
