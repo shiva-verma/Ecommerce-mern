@@ -133,3 +133,116 @@ exports.resetPassword = catchAsyncError(async(req, res, next) =>{
          await user.save({validateBeforeSave:false});
          sendToken(user, 200, res);
 });
+
+//get user details(admin's own profile details)
+exports.getUserDetail = catchAsyncError(async(req, res, next) =>{
+      const user = await User.findById(req.user.id);
+
+      res.status(200).json({
+        success:true,
+        user,
+      });
+});
+
+//update user password
+exports.updatePassword = catchAsyncError(async(req, res, next) =>{
+      const user = await User.findById(req.user.id).select("+password");
+
+      const isPasswordMatched = await user.comparePassword(req.body.oldPassword);
+
+      if(!isPasswordMatched){
+        return next(new ErrorHandler("old password is incorrect", 401)); 
+      }
+
+      if(req.body.newPassword != req.body.confirmPassword){
+        return next(new ErrorHandler("Password do not match", 401)); 
+      }
+
+      user.password = req.body.newPassword;
+
+      await user.save({validateBeforeSave:false});
+
+      sendToken(user, 200, res);
+});
+
+
+//update user profile
+exports.updateProfile = catchAsyncError(async(req, res, next) =>{
+  
+      const newUserData = {
+        name: req.body.name,
+        email : req.body.email,
+      }
+
+      const user = await User.findByIdAndUpdate(req.user.id, newUserData,{
+        new:true,
+        runValidators:true,
+      });
+
+    res.status(200).json({
+      success:true
+    });
+
+});
+
+//get all user
+exports.getAllUser = catchAsyncError(async(req, res, next) => {
+      const users = await User.find();
+
+      res.status(200).json({
+        success:true,
+        users,
+      });
+});
+
+//get all user(others detail check by ADMIN)
+exports.getSingleUser = catchAsyncError(async(req, res, next) => {
+      const user = await User.findById(req.params.id);
+
+      if(!user){
+        return next(new ErrorHandler(`User doesn't exist with id: ${req.params.id}`,401));
+      }
+
+      res.status(200).json({
+        success:true,
+        user,
+      });
+});
+
+//update user role by admin
+exports.updateUserRole = catchAsyncError(async(req, res, next) =>{
+  
+  const newUserData = {
+    name: req.body.name,
+    email : req.body.email,
+    role : req.body.role,
+  }
+
+  const user = await User.findByIdAndUpdate(req.params.id, newUserData,{
+    new:true,
+    runValidators:true,
+  });
+
+  res.status(200).json({
+    success:true
+  });
+
+});
+
+//delete user profile by admin
+exports.deleteProfile = catchAsyncError(async(req, res, next) =>{
+
+  const user = await User.findById(req.params.id);
+
+  if(!user){
+    return next(new ErrorHandler(`User doesn't exist with id: ${req.params.id}`,401)) 
+  }
+
+  await User.findByIdAndDelete(req.params.id);
+
+  res.status(200).json({
+    success:true
+  });
+
+});
+
